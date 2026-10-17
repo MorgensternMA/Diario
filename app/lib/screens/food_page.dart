@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../common.dart';
-import '../data/food_table.dart';
+import '../data/food_db.dart';
 import '../data/store.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -425,8 +425,18 @@ class _FoodSheetState extends State<_FoodSheet> {
   late final _portion = TextEditingController(text: widget.entry?.portion);
   final _grams = TextEditingController();
 
-  /// Reference food picked from the table; calories and protein follow the grams.
+  /// Reference food picked from the database; calories and protein follow the grams.
   FoodRef? _ref;
+
+  /// Reference foods matching the typed name.
+  List<FoodRef> _matches = const [];
+  int _searchGen = 0;
+
+  Future<void> _search() async {
+    final gen = ++_searchGen;
+    final found = await foodDb.search(_name.text);
+    if (mounted && gen == _searchGen) setState(() => _matches = found);
+  }
 
   @override
   void dispose() {
@@ -494,7 +504,7 @@ class _FoodSheetState extends State<_FoodSheet> {
       for (final f in widget.frequent)
         if (query.isEmpty || f.name.toLowerCase().contains(query)) f,
     ].take(8).toList();
-    final table = showSuggestions ? searchFoods(query).take(8).toList() : const <FoodRef>[];
+    final table = showSuggestions ? _matches : const <FoodRef>[];
 
     return SafeArea(
       child: Padding(
@@ -527,9 +537,12 @@ class _FoodSheetState extends State<_FoodSheet> {
               TextField(
                 controller: _name,
                 textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => setState(() {
-                  if (_ref != null && _name.text != _ref!.name) _ref = null;
-                }),
+                onChanged: (_) {
+                  setState(() {
+                    if (_ref != null && _name.text != _ref!.name) _ref = null;
+                  });
+                  _search();
+                },
                 decoration: const InputDecoration(
                   hintText: '¿Qué comiste? (ej: pollo, huevo, yogur)',
                   prefixIcon: Icon(Icons.search_rounded),

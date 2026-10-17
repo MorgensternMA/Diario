@@ -19,7 +19,7 @@ La app tiene tres pestañas:
 - **Mi bolso**: todos los compartimentos, cada uno con un resumen:
   - **Agenda**: próximos eventos por sección. Las secciones (Exámenes, Turnos médicos, Social…) se crean con color e ícono propios.
   - **Listas**: Pendientes, Supermercado, Compras importantes y las que agregues. Los ítems pueden tener cantidad, nota y fecha límite.
-  - **Comidas**: calorías y proteína por comida (desayuno, almuerzo, merienda, cena, snacks), con metas diarias opcionales de las dos. Al anotar, podés buscar en una tabla de alimentos comunes (valores aproximados cada 100 g, en `lib/data/food_table.dart`) y poner los gramos para que calcule calorías y proteína, o repetir comidas frecuentes con un toque.
+  - **Comidas**: calorías y proteína por comida (desayuno, almuerzo, merienda, cena, snacks), con metas diarias opcionales de las dos. Al anotar, podés buscar en una base de alimentos comunes (`assets/foods.db`, ver abajo) y poner los gramos para que calcule calorías y proteína, o repetir comidas frecuentes con un toque.
   - **Hábitos**: trackers de sí/no, contador, número o escala del 1 al 5, con historial de 12 semanas.
   - **Mi diario**: todos tus días escritos.
   - **Ciclo**: estado, gráfico "Cómo vas a estar" con energía, ganas, ánimo y hambre proyectados para las próximas 5 semanas (se arrastra para ver cada día), tus patrones (lo que se repite en tus ciclos), lo que viene en las próximas semanas, próximos períodos e historial.
@@ -52,6 +52,17 @@ Cada día registrado (energía, ganas, ánimo, hambre y remedios) se ubica en su
 
 Son estimaciones: no sirven como método anticonceptivo.
 
+## Base de alimentos
+
+`app/assets/foods.db` es una SQLite de solo lectura que viene dentro de la app (no usa internet). Tiene unos 130 alimentos comunes con nombre en español y calorías y proteína cada 100 g, tomados de **USDA FoodData Central – SR Legacy** (Departamento de Agricultura de EE.UU., dominio público).
+
+Para regenerarla o sumar alimentos:
+
+1. Bajá a mano el archivo "SR Legacy" en formato JSON desde el sitio oficial, https://fdc.nal.usda.gov/download-datasets, y descomprimilo.
+2. Agregá filas a `app/tool/generic_foods.tsv` (nombre en español, descripción exacta de USDA, porción en gramos y, opcionalmente, cómo se lee la porción).
+3. Desde `app/`, corré `python3 -I tool/build_food_db.py <archivo.json>`. El script solo lee archivos locales.
+4. Si cambian los datos, subí `_version` en `lib/data/food_db.dart` para que el celular reemplace su copia.
+
 ## Estructura
 
 ```
@@ -63,8 +74,10 @@ app/lib/
   data/store.dart      base SQLite, migraciones, consultas y backup/restore
   data/cycles.dart     cálculo del ciclo y predicciones
   data/insights.dart   patrones de energía/ganas/hambre/remedios por día del ciclo
+  data/food_db.dart    búsqueda en la base de alimentos (assets/foods.db)
   screens/             una pantalla por archivo
 app/tool/render_icon_test.dart   dibuja el ícono (luego: dart run flutter_launcher_icons)
+app/tool/build_food_db.py        arma assets/foods.db desde el archivo de USDA
 ```
 
 La carpeta `backend/` tiene la primera versión con servidor en Go. La app ya no la usa.

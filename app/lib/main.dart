@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'data/food_db.dart';
 import 'data/store.dart';
 import 'screens/bag_page.dart';
 import 'screens/calendar_page.dart';
@@ -12,6 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es');
   store = await Store.open();
+  foodDb = await FoodDb.open();
   runApp(const DiarioApp());
 }
 
