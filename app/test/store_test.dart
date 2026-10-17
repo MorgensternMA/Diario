@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:diario/data/store.dart';
 import 'package:diario/models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +62,44 @@ void main() {
     expect(await s.items(l.id), isEmpty);
   });
 
+  test('food log, frequent foods and calorie goal', () async {
+    await s.saveFood(const FoodEntry(date: '2026-10-20', meal: 'breakfast', name: 'Tostadas', kcal: 250, protein: 8));
+    await s.saveFood(const FoodEntry(date: '2026-10-20', meal: 'lunch', name: 'Ensalada', kcal: 400, protein: 30));
+    await s.saveFood(const FoodEntry(date: '2026-10-21', meal: 'breakfast', name: 'tostadas', kcal: 300, portion: '2'));
+    await s.setCalorieGoal(1800);
+    await s.setProteinGoal(90);
+
+    final day = await s.day('2026-10-20');
+    expect(day.calories, 650);
+    expect(day.calorieGoal, 1800);
+    expect(day.protein, 38);
+    expect(day.proteinGoal, 90);
+    final totals = await s.dailyTotals('2026-10-19', '2026-10-21');
+    expect(totals.keys, ['2026-10-20', '2026-10-21']);
+    expect([totals['2026-10-20']!.kcal, totals['2026-10-20']!.protein], [650, 38]);
+
+    // Same food in different case counts once, with its latest calories.
+    final freq = await s.frequentFoods();
+    expect(freq.first.kcal, 300);
+    expect(freq, hasLength(2));
+  });
+
+  test('medicines and daily levels', () async {
+    await s.saveMed(const MedEntry(date: '2026-10-20', name: 'Ibuprofeno', dose: '400 mg', time: '10:30'));
+    await s.saveJournal(const JournalEntry(date: '2026-10-20', energy: 2, motivation: 3, hunger: 5));
+    final day = await s.day('2026-10-20');
+    expect(day.meds.single.dose, '400 mg');
+    expect([day.journal!.energy, day.journal!.motivation, day.journal!.hunger], [2, 3, 5]);
+    expect((await s.frequentMeds()).single.name, 'Ibuprofeno');
+    expect(await s.journalEntries(), hasLength(1));
+  });
+
+  test('hidden sections setting', () async {
+    expect(await s.hiddenSections(), isEmpty);
+    await s.setHiddenSections({'cycle', 'food'});
+    expect(await s.hiddenSections(), {'cycle', 'food'});
+  });
+
   test('rejects empty names', () async {
     expect(() => s.saveList(const TodoList(name: '  ')), throwsA(isA<StoreException>()));
   });
@@ -67,6 +107,9 @@ void main() {
   test('backup round-trips and bad files change nothing', () async {
     await s.saveEvent(const Event(title: 'Turno', date: '2026-11-02'));
     await s.savePeriod(const PeriodDay(date: '2026-10-14', flow: 4));
+    await s.saveFood(const FoodEntry(date: '2026-10-14', meal: 'lunch', name: 'Fideos', kcal: 600));
+    await s.saveMed(const MedEntry(date: '2026-10-14', name: 'Ibuprofeno'));
+    await s.setCalorieGoal(2000);
     final backup = await s.exportJson();
 
     await s.deleteList((await s.lists()).first.id);
@@ -79,6 +122,35 @@ void main() {
     await s.importJson(backup);
     expect((await s.events()).map((e) => e.title), ['Turno']);
     expect(await s.lists(), hasLength(3));
-    expect((await s.day('2026-10-14')).period!.flow, 4);
+    final day = await s.day('2026-10-14');
+    expect(day.period!.flow, 4);
+    expect(day.calories, 600);
+    expect(day.meds.single.name, 'Ibuprofeno');
+    expect(day.calorieGoal, 2000);
+  });
+
+  test('upgrades a version 1 database without losing data', () async {
+    final path = '${Directory.systemTemp.createTempSync('diario').path}/v1.db';
+    final v1 = await databaseFactoryFfiNoIsolate.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, _) async {
+          for (final stmt in schemaV1) {
+            await db.execute(stmt);
+          }
+          await db.insert('journal', {'date': '2026-01-01', 'mood': 5, 'note': 'año nuevo'});
+        },
+      ),
+    );
+    await v1.close();
+
+    final up = await Store.open(path: path, factory: databaseFactoryFfiNoIsolate);
+    final j = (await up.journalEntries()).single;
+    expect([j.mood, j.note, j.energy], [5, 'año nuevo', 0]);
+    await up.saveFood(const FoodEntry(date: '2026-01-01', meal: 'dinner', name: 'Vitel toné', kcal: 500));
+    await up.saveJournal(const JournalEntry(date: '2026-01-01', mood: 5, energy: 3));
+    expect((await up.day('2026-01-01')).journal!.energy, 3);
+    await up.close();
   });
 }

@@ -1,11 +1,12 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show ChangeNotifier;
+import 'package:flutter/foundation.dart' show ChangeNotifier, visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../models.dart';
 import 'cycles.dart';
+import 'insights.dart';
 
 class StoreException implements Exception {
   final String message;
@@ -24,7 +25,9 @@ final bus = DataBus();
 
 late Store store;
 
-const _schema = [
+/// Tables of the first release; later versions add [_schemaV2].
+@visibleForTesting
+const schemaV1 = [
   '''CREATE TABLE categories (
     id    INTEGER PRIMARY KEY,
     name  TEXT NOT NULL,
@@ -92,6 +95,39 @@ const _schema = [
   )''',
 ];
 
+/// Added in version 2: calorie and medicine logs, settings, and daily
+/// energy/motivation/hunger levels.
+const _schemaV2 = [
+  '''CREATE TABLE food_log (
+    id      INTEGER PRIMARY KEY,
+    date    TEXT NOT NULL,
+    meal    TEXT NOT NULL,
+    name    TEXT NOT NULL,
+    kcal    REAL NOT NULL DEFAULT 0,
+    portion TEXT NOT NULL DEFAULT ''
+  )''',
+  'CREATE INDEX food_log_date ON food_log(date)',
+  '''CREATE TABLE settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )''',
+  '''CREATE TABLE med_log (
+    id   INTEGER PRIMARY KEY,
+    date TEXT NOT NULL,
+    name TEXT NOT NULL,
+    dose TEXT NOT NULL DEFAULT '',
+    time TEXT NOT NULL DEFAULT ''
+  )''',
+  'CREATE INDEX med_log_date ON med_log(date)',
+  // Daily 1-5 levels; 0 = not set.
+  'ALTER TABLE journal ADD COLUMN energy INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE journal ADD COLUMN motivation INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE journal ADD COLUMN hunger INTEGER NOT NULL DEFAULT 0',
+];
+
+/// Added in version 3: protein per food entry.
+const _schemaV3 = ['ALTER TABLE food_log ADD COLUMN protein REAL NOT NULL DEFAULT 0'];
+
 /// Tables in an order that satisfies foreign keys on insert.
 const _tables = [
   'categories',
@@ -102,30 +138,33 @@ const _tables = [
   'period_days',
   'trackers',
   'tracker_entries',
+  'food_log',
+  'settings',
+  'med_log',
 ];
 
 Future<void> _seed(DatabaseExecutor db) async {
   for (final c in [
-    ['Exámenes', '#EF5350', 'school'],
-    ['Turnos médicos', '#26A69A', 'medical'],
-    ['Social', '#FFA726', 'people'],
-    ['Trabajo', '#5C6BC0', 'work'],
+    ['Exámenes', '#9B8AD8', 'school'],
+    ['Turnos médicos', '#5FA8A0', 'medical'],
+    ['Social', '#F2A65A', 'people'],
+    ['Trabajo', '#6C8EBF', 'work'],
   ]) {
     await db.insert('categories', {'name': c[0], 'color': c[1], 'icon': c[2]});
   }
   var pos = 0;
   for (final l in [
-    ['Pendientes', 'todo', 'check', '#7E57C2'],
-    ['Supermercado', 'groceries', 'cart', '#66BB6A'],
-    ['Compras importantes', 'purchases', 'bag', '#FFA726'],
+    ['Pendientes', 'todo', 'check', '#9B8AD8'],
+    ['Supermercado', 'groceries', 'cart', '#81B29A'],
+    ['Compras importantes', 'purchases', 'bag', '#E07A5F'],
   ]) {
     await db.insert('lists', {'name': l[0], 'kind': l[1], 'icon': l[2], 'color': l[3], 'position': ++pos});
   }
   pos = 0;
   for (final t in [
-    Tracker(name: 'Agua', kind: 'count', unit: 'vasos', goal: 8, color: '#42A5F5', icon: 'water'),
-    Tracker(name: 'Ejercicio', kind: 'check', color: '#66BB6A', icon: 'fitness'),
-    Tracker(name: 'Sueño', kind: 'number', unit: 'horas', goal: 8, color: '#7E57C2', icon: 'sleep'),
+    Tracker(name: 'Agua', kind: 'count', unit: 'vasos', goal: 8, color: '#7FB3D5', icon: 'water'),
+    Tracker(name: 'Ejercicio', kind: 'check', color: '#81B29A', icon: 'fitness'),
+    Tracker(name: 'Sueño', kind: 'number', unit: 'horas', goal: 8, color: '#9B8AD8', icon: 'sleep'),
   ]) {
     await db.insert('trackers', {..._trackerRow(t), 'position': ++pos});
   }
@@ -190,8 +229,29 @@ Tracker _tracker(Map<String, Object?> r) => Tracker(
 JournalEntry _journal(Map<String, Object?> r) => JournalEntry(
   date: r['date'] as String,
   mood: r['mood'] as int,
+  energy: r['energy'] as int,
+  motivation: r['motivation'] as int,
+  hunger: r['hunger'] as int,
   feelings: _untags(r['feelings']),
   note: r['note'] as String,
+);
+
+MedEntry _med(Map<String, Object?> r) => MedEntry(
+  id: r['id'] as int,
+  date: r['date'] as String,
+  name: r['name'] as String,
+  dose: r['dose'] as String,
+  time: r['time'] as String,
+);
+
+FoodEntry _food(Map<String, Object?> r) => FoodEntry(
+  id: r['id'] as int,
+  date: r['date'] as String,
+  meal: r['meal'] as String,
+  name: r['name'] as String,
+  kcal: (r['kcal'] as num).toDouble(),
+  protein: (r['protein'] as num).toDouble(),
+  portion: r['portion'] as String,
 );
 
 PeriodDay _period(Map<String, Object?> r) => PeriodDay(
@@ -211,11 +271,20 @@ class Store {
     final db = await f.openDatabase(
       path ?? p.join(await f.getDatabasesPath(), 'diario.db'),
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 3,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+        onUpgrade: (db, from, _) async {
+          for (final (version, statements) in [(2, _schemaV2), (3, _schemaV3)]) {
+            if (from < version) {
+              for (final s in statements) {
+                await db.execute(s);
+              }
+            }
+          }
+        },
         onCreate: (db, _) async {
           final batch = db.batch();
-          for (final s in _schema) {
+          for (final s in [...schemaV1, ..._schemaV2, ..._schemaV3]) {
             batch.execute(s);
           }
           await batch.commit(noResult: true);
@@ -249,6 +318,10 @@ class Store {
       events: await events(from: date, to: date),
       trackers: [for (final t in await trackers()) TrackerDay(t, values[t.id])],
       dueItems: await _itemsDue(date, date),
+      food: await food(date),
+      meds: await meds(date),
+      calorieGoal: await calorieGoal(),
+      proteinGoal: await proteinGoal(),
     );
   }
 
@@ -449,10 +522,29 @@ class Store {
 
   // ---------- Journal ----------
 
+  /// Entries in [from, to], oldest first.
+  Future<List<JournalEntry>> journalBetween(String from, String to) async => [
+    for (final r in await db.query('journal', where: 'date >= ? AND date <= ?', whereArgs: [from, to], orderBy: 'date'))
+      _journal(r),
+  ];
+
+  /// Entries that have a mood or some text, newest first.
+  Future<List<JournalEntry>> journalEntries() async => [
+    for (final r in await db.query(
+      'journal',
+      where: "mood > 0 OR energy > 0 OR motivation > 0 OR hunger > 0 OR note != ''",
+      orderBy: 'date DESC',
+    ))
+      _journal(r),
+  ];
+
   Future<void> saveJournal(JournalEntry j) => _mutate(
     db.insert('journal', {
       'date': j.date,
       'mood': j.mood,
+      'energy': j.energy,
+      'motivation': j.motivation,
+      'hunger': j.hunger,
       'feelings': _tags(j.feelings),
       'note': j.note,
     }, conflictAlgorithm: ConflictAlgorithm.replace),
@@ -517,10 +609,120 @@ class Store {
           }, conflictAlgorithm: ConflictAlgorithm.replace),
   );
 
+  // ---------- Food & calories ----------
+
+  Future<List<FoodEntry>> food(String date) async => [
+    for (final r in await db.query('food_log', where: 'date = ?', whereArgs: [date], orderBy: 'id')) _food(r),
+  ];
+
+  Future<void> saveFood(FoodEntry f) => _mutate(() async {
+    final row = {
+      'date': f.date,
+      'meal': f.meal,
+      'name': _required(f.name, 'el nombre'),
+      'kcal': f.kcal,
+      'protein': f.protein,
+      'portion': f.portion.trim(),
+    };
+    f.id == 0 ? await db.insert('food_log', row) : await db.update('food_log', row, where: 'id = ?', whereArgs: [f.id]);
+  }());
+
+  Future<void> deleteFood(int id) => _mutate(db.delete('food_log', where: 'id = ?', whereArgs: [id]));
+
+  /// Foods logged before, most frequent first, with their latest calories,
+  /// protein and portion, to add them again with one tap.
+  Future<List<FoodEntry>> frequentFoods({int limit = 30}) async {
+    final rows = await db.rawQuery(
+      '''
+      SELECT f.* FROM food_log f
+      JOIN (SELECT name, MAX(id) AS last, COUNT(*) AS n FROM food_log GROUP BY name COLLATE NOCASE) g ON f.id = g.last
+      ORDER BY g.n DESC, f.id DESC LIMIT ?''',
+      [limit],
+    );
+    return [for (final r in rows) _food(r)];
+  }
+
+  /// Calories and protein per day in [from, to].
+  Future<Map<String, ({double kcal, double protein})>> dailyTotals(String from, String to) async => {
+    for (final r in await db.rawQuery(
+      'SELECT date, SUM(kcal) AS kcal, SUM(protein) AS protein FROM food_log '
+      'WHERE date >= ? AND date <= ? GROUP BY date',
+      [from, to],
+    ))
+      r['date'] as String: (kcal: (r['kcal'] as num).toDouble(), protein: (r['protein'] as num).toDouble()),
+  };
+
+  // ---------- Medicines ----------
+
+  Future<List<MedEntry>> meds(String date) async => [
+    for (final r in await db.query('med_log', where: 'date = ?', whereArgs: [date], orderBy: "time = '', time, id"))
+      _med(r),
+  ];
+
+  Future<void> saveMed(MedEntry m) => _mutate(() async {
+    final row = {'date': m.date, 'name': _required(m.name, 'el nombre'), 'dose': m.dose.trim(), 'time': m.time};
+    m.id == 0 ? await db.insert('med_log', row) : await db.update('med_log', row, where: 'id = ?', whereArgs: [m.id]);
+  }());
+
+  Future<void> deleteMed(int id) => _mutate(db.delete('med_log', where: 'id = ?', whereArgs: [id]));
+
+  /// Medicines taken before, most frequent first, with their latest dose.
+  Future<List<MedEntry>> frequentMeds({int limit = 12}) async {
+    final rows = await db.rawQuery(
+      '''
+      SELECT m.* FROM med_log m
+      JOIN (SELECT MAX(id) AS last, COUNT(*) AS n FROM med_log GROUP BY name COLLATE NOCASE) g ON m.id = g.last
+      ORDER BY g.n DESC, m.id DESC LIMIT ?''',
+      [limit],
+    );
+    return [for (final r in rows) _med(r)];
+  }
+
+  // ---------- Cycle insights ----------
+
+  /// Everything the cycle forecast learns from.
+  Future<CycleInsights> cycleInsights({int days = 35}) async {
+    final journal = await db.query('journal', where: 'energy > 0 OR motivation > 0 OR hunger > 0 OR mood > 0');
+    final meds = await db.query('med_log', columns: ['date', 'name']);
+    return computeInsights(
+      period: await _periodDays(),
+      journal: [for (final r in journal) _journal(r)],
+      meds: [for (final r in meds) (date: r['date'] as String, name: r['name'] as String)],
+      now: DateTime.now(),
+      days: days,
+    );
+  }
+
+  // ---------- Settings ----------
+
+  /// Sections of "Hoy" the user chose to hide.
+  Future<Set<String>> hiddenSections() async =>
+      (jsonDecode(await setting('hidden_sections') ?? '[]') as List).cast<String>().toSet();
+
+  Future<void> setHiddenSections(Set<String> keys) => setSetting('hidden_sections', jsonEncode(keys.toList()));
+
+  Future<String?> setting(String key) async {
+    final r = await db.query('settings', where: 'key = ?', whereArgs: [key]);
+    return r.isEmpty ? null : r.first['value'] as String;
+  }
+
+  Future<void> setSetting(String key, String value) =>
+      _mutate(db.insert('settings', {'key': key, 'value': value}, conflictAlgorithm: ConflictAlgorithm.replace));
+
+  /// Daily calorie goal; 0 means none.
+  Future<double> calorieGoal() async => double.tryParse(await setting('calorie_goal') ?? '') ?? 0;
+
+  Future<void> setCalorieGoal(double goal) => setSetting('calorie_goal', goal.toString());
+
+  /// Daily protein goal in grams; 0 means none.
+  Future<double> proteinGoal() async => double.tryParse(await setting('protein_goal') ?? '') ?? 0;
+
+  Future<void> setProteinGoal(double grams) => setSetting('protein_goal', grams.toString());
+
   // ---------- Backup ----------
 
   static const _backupFormat = 'diario-backup';
-  static const _backupVersion = 1;
+  static const _backupVersion = 3;
 
   /// Every table as JSON, to be saved wherever the user wants.
   Future<String> exportJson() async {

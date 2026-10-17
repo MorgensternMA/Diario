@@ -43,19 +43,19 @@ class _AgendaPageState extends State<AgendaPage> with Loader<AgendaPage, _Agenda
             tooltip: _history ? 'Ver próximos' : 'Ver todo (incluye pasados y hechos)',
             isSelected: _history,
             onPressed: () => _setFilter(() => _history = !_history),
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.history_rounded),
           ),
           IconButton(
             tooltip: 'Secciones',
             onPressed: () => showCategoryManager(context),
-            icon: const Icon(Icons.folder_outlined),
+            icon: const Icon(Icons.folder_rounded),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Nuevo evento',
         onPressed: () => showEventForm(context, categoryId: _categoryId),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
       body: body((d) {
         final (events, categories) = d;
@@ -91,7 +91,7 @@ class _AgendaPageState extends State<AgendaPage> with Loader<AgendaPage, _Agenda
                       ),
                     ),
                   ActionChip(
-                    avatar: const Icon(Icons.add, size: 16),
+                    avatar: const Icon(Icons.add_rounded, size: 16),
                     label: const Text('Sección'),
                     onPressed: () => editCategory(context),
                   ),

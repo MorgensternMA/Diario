@@ -7,65 +7,107 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _size = 1024.0;
-const _lavender = Color(0xFF9B7BD8);
-const _rose = Color(0xFFE88BB0);
-const _pink = Color(0xFFE5397A);
-const _plum = Color(0xFF5B3E96);
+const _coralLight = Color(0xFFE59A84);
+const _coral = Color(0xFFCB5F4C);
+const _cream = Color(0xFFFFF6EC);
+const _creamDark = Color(0xFFF3E1CF);
+const _lavender = Color(0xFF9B8AD8);
+const _sage = Color(0xFF81B29A);
+const _heart = Color(0xFFD4705E);
 
 void _background(Canvas c) {
   c.drawRect(
     const Rect.fromLTWH(0, 0, _size, _size),
-    Paint()..shader = ui.Gradient.linear(Offset.zero, const Offset(_size, _size), [_lavender, _rose]),
+    Paint()..shader = ui.Gradient.linear(Offset.zero, const Offset(_size, _size), [_coralLight, _coral]),
   );
 }
 
-/// A calendar page with binder rings and a drop, scaled around the center.
+/// A tote bag with an agenda card and a pencil peeking out, scaled around
+/// the center.
 void _glyph(Canvas c, double scale) {
   c.save();
   c.translate(_size / 2, _size / 2);
   c.scale(scale);
   c.translate(-_size / 2, -_size / 2);
-
   const s = _size;
-  const w = s * 0.56, h = s * 0.56;
-  const left = (s - w) / 2, top = (s - h) / 2 + s * 0.03;
-  const r = Radius.circular(s * 0.08);
-  final page = RRect.fromLTRBR(left, top, left + w, top + h, r);
 
-  c.drawRRect(
-    page.shift(const Offset(0, s * 0.018)),
+  // Handle.
+  c.drawArc(
+    Rect.fromCenter(center: const Offset(s * 0.5, s * 0.41), width: s * 0.34, height: s * 0.36),
+    3.14159,
+    3.14159,
+    false,
+    Paint()
+      ..color = _creamDark
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s * 0.05
+      ..strokeCap = StrokeCap.round,
+  );
+
+  // Things peeking out of the bag.
+  void tilted(Offset center, double angle, void Function() draw) {
+    c.save();
+    c.translate(center.dx, center.dy);
+    c.rotate(angle);
+    draw();
+    c.restore();
+  }
+
+  tilted(const Offset(s * 0.42, s * 0.40), -0.2, () {
+    final card = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: s * 0.19, height: s * 0.22),
+      const Radius.circular(s * 0.03),
+    );
+    c.drawRRect(card, Paint()..color = _lavender);
+    c.drawRRect(
+      RRect.fromLTRBAndCorners(
+        card.left,
+        card.top,
+        card.right,
+        card.top + s * 0.055,
+        topLeft: const Radius.circular(s * 0.03),
+        topRight: const Radius.circular(s * 0.03),
+      ),
+      Paint()..color = const Color(0xFF7D6BC4),
+    );
+  });
+  tilted(const Offset(s * 0.62, s * 0.37), 0.22, () {
+    c.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: s * 0.065, height: s * 0.27),
+        const Radius.circular(s * 0.03),
+      ),
+      Paint()..color = _sage,
+    );
+  });
+
+  // Bag body, slightly wider at the bottom.
+  final body = Path()
+    ..moveTo(s * 0.27, s * 0.44)
+    ..lineTo(s * 0.73, s * 0.44)
+    ..lineTo(s * 0.77, s * 0.76)
+    ..quadraticBezierTo(s * 0.78, s * 0.82, s * 0.72, s * 0.82)
+    ..lineTo(s * 0.28, s * 0.82)
+    ..quadraticBezierTo(s * 0.22, s * 0.82, s * 0.23, s * 0.76)
+    ..close();
+  c.drawPath(
+    body.shift(const Offset(0, s * 0.02)),
     Paint()
       ..color = const Color(0x40000000)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, s * 0.025),
   );
-  c.drawRRect(page, Paint()..color = const Color(0xFFFFFFFF));
-  c.drawRRect(
-    RRect.fromLTRBAndCorners(left, top, left + w, top + h * 0.24, topLeft: r, topRight: r),
-    Paint()..color = _pink,
-  );
-  for (final x in [left + w * 0.28, left + w * 0.72]) {
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(x, top), width: s * 0.05, height: s * 0.13),
-        const Radius.circular(s * 0.025),
-      ),
-      Paint()..color = _plum,
-    );
-  }
+  c.drawPath(body, Paint()..color = _cream);
+  // Band along the opening.
+  c.drawRect(const Rect.fromLTRB(s * 0.27, s * 0.44, s * 0.73, s * 0.49), Paint()..color = _creamDark);
 
-  // Drop centered in the page body.
-  const cx = s / 2, cy = top + h * 0.62, d = h * 0.46;
-  const rad = d * 0.32;
-  const cc = Offset(cx, cy + d * 0.18);
-  final drop = Path()
-    ..moveTo(cx, cy - d * 0.5)
-    // Control points above the arc ends keep the sides tangent to the arc.
-    ..cubicTo(cx + rad * 0.25, cy - d * 0.36, cx + rad, cc.dy - rad * 0.95, cx + rad, cc.dy)
-    ..arcToPoint(Offset(cx - rad, cc.dy), radius: const Radius.circular(rad))
-    ..cubicTo(cx - rad, cc.dy - rad * 0.95, cx - rad * 0.25, cy - d * 0.36, cx, cy - d * 0.5)
+  // Heart on the front.
+  const cx = s * 0.5, cy = s * 0.64, w = s * 0.075, h = s * 0.11;
+  final heart = Path()
+    ..moveTo(cx, cy + h * 0.45)
+    ..cubicTo(cx - w * 1.6, cy - h * 0.05, cx - w * 0.75, cy - h * 0.75, cx, cy - h * 0.2)
+    ..cubicTo(cx + w * 0.75, cy - h * 0.75, cx + w * 1.6, cy - h * 0.05, cx, cy + h * 0.45)
     ..close();
-  c.drawPath(drop, Paint()..color = _pink);
-  c.drawCircle(Offset(cx - rad * 0.4, cc.dy - rad * 0.25), rad * 0.18, Paint()..color = const Color(0x88FFFFFF));
+  c.drawPath(heart, Paint()..color = _heart);
   c.restore();
 }
 

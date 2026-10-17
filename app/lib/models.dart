@@ -99,10 +99,22 @@ class Item {
 class JournalEntry {
   final String date;
   final int mood; // 0 = unset, 1..5
+  // 1..5 levels, 0 = unset.
+  final int energy;
+  final int motivation;
+  final int hunger;
   final List<String> feelings;
   final String note;
 
-  const JournalEntry({required this.date, this.mood = 0, this.feelings = const [], this.note = ''});
+  const JournalEntry({
+    required this.date,
+    this.mood = 0,
+    this.energy = 0,
+    this.motivation = 0,
+    this.hunger = 0,
+    this.feelings = const [],
+    this.note = '',
+  });
 }
 
 class PeriodDay {
@@ -165,6 +177,10 @@ class Day {
   final List<Event> events;
   final List<TrackerDay> trackers;
   final List<Item> dueItems;
+  final List<FoodEntry> food;
+  final List<MedEntry> meds;
+  final double calorieGoal;
+  final double proteinGoal;
 
   const Day({
     required this.date,
@@ -173,6 +189,46 @@ class Day {
     this.events = const [],
     this.trackers = const [],
     this.dueItems = const [],
+    this.food = const [],
+    this.meds = const [],
+    this.calorieGoal = 0,
+    this.proteinGoal = 0,
+  });
+
+  double get calories => food.fold(0, (sum, f) => sum + f.kcal);
+  double get protein => food.fold(0, (sum, f) => sum + f.protein);
+}
+
+/// Meals in display order, with their labels.
+const meals = {'breakfast': 'Desayuno', 'lunch': 'Almuerzo', 'snack': 'Merienda', 'dinner': 'Cena', 'extra': 'Snacks'};
+
+class MedEntry {
+  final int id;
+  final String date;
+  final String name;
+  final String dose;
+  final String time; // HH:MM or ''
+
+  const MedEntry({this.id = 0, required this.date, required this.name, this.dose = '', this.time = ''});
+}
+
+class FoodEntry {
+  final int id;
+  final String date;
+  final String meal; // a key of [meals]
+  final String name;
+  final double kcal;
+  final double protein; // grams
+  final String portion;
+
+  const FoodEntry({
+    this.id = 0,
+    required this.date,
+    required this.meal,
+    required this.name,
+    required this.kcal,
+    this.protein = 0,
+    this.portion = '',
   });
 }
 

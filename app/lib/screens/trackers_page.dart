@@ -29,7 +29,7 @@ class _TrackersPageState extends State<TrackersPage> with Loader<TrackersPage, L
       appBar: AppBar(title: const Text('Hábitos y trackers')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => editTracker(context),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Nuevo'),
       ),
       body: body((trackers) {
@@ -57,10 +57,7 @@ class _TrackersPageState extends State<TrackersPage> with Loader<TrackersPage, L
   Widget _tile(BuildContext context, Tracker t) {
     final color = hexColor(t.color);
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: 0.2),
-        child: Icon(iconFor(t.icon), color: color),
-      ),
+      leading: IconBubble(iconFor(t.icon), color),
       title: Text(t.name),
       subtitle: Text(_kindLabel[t.kind]!.split(' (').first + (t.goal > 0 ? ' · meta ${fmtNum(t.goal)} ${t.unit}' : '')),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TrackerHistoryPage(tracker: t))),

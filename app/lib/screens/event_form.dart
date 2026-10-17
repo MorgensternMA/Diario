@@ -114,7 +114,7 @@ class _EventFormState extends State<EventForm> {
       appBar: AppBar(
         title: Text(_editing ? 'Editar evento' : 'Nuevo evento'),
         actions: [
-          if (_editing) IconButton(onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+          if (_editing) IconButton(onPressed: _delete, icon: const Icon(Icons.delete_outline_rounded)),
           TextButton(onPressed: _saving ? null : _save, child: const Text('Guardar')),
         ],
       ),
@@ -152,13 +152,13 @@ class _EventFormState extends State<EventForm> {
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.calendar_today),
+            leading: const Icon(Icons.calendar_today_rounded),
             title: Text(longDate(_date)),
             onTap: _pickDate,
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule),
+            leading: const Icon(Icons.schedule_rounded),
             title: Text(_time.isEmpty ? 'Sin hora' : _time),
             trailing: _time.isEmpty
                 ? null
@@ -212,7 +212,7 @@ class _CategoryManagerState extends State<CategoryManager> with Loader<CategoryM
       appBar: AppBar(title: const Text('Secciones de la agenda')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => editCategory(context),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Nueva sección'),
       ),
       body: body(
@@ -220,14 +220,11 @@ class _CategoryManagerState extends State<CategoryManager> with Loader<CategoryM
           children: [
             for (final c in cats)
               ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: hexColor(c.color).withValues(alpha: 0.2),
-                  child: Icon(iconFor(c.icon), color: hexColor(c.color)),
-                ),
+                leading: IconBubble(iconFor(c.icon), hexColor(c.color)),
                 title: Text(c.name),
                 onTap: () => editCategory(context, c),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_outline_rounded),
                   onPressed: () async {
                     if (await confirm(context, '¿Eliminar la sección "${c.name}"? Sus eventos quedan sin sección.') &&
                         context.mounted) {

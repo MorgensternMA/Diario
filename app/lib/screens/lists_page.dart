@@ -32,7 +32,7 @@ class _ListsPageState extends State<ListsPage> with Loader<ListsPage, List<TodoL
           final l = await editList(context);
           if (l != null && context.mounted) _open(context, l);
         },
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Nueva lista'),
       ),
       body: body(
@@ -48,10 +48,7 @@ class _ListsPageState extends State<ListsPage> with Loader<ListsPage, List<TodoL
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: hexColor(l.color).withValues(alpha: 0.2),
-                    child: Icon(iconFor(l.icon), color: hexColor(l.color)),
-                  ),
+                  leading: IconBubble(iconFor(l.icon), hexColor(l.color)),
                   title: Text(l.name),
                   subtitle: Text(
                     l.total == 0
@@ -60,7 +57,7 @@ class _ListsPageState extends State<ListsPage> with Loader<ListsPage, List<TodoL
                         ? 'Todo listo ✓'
                         : '${l.pending} pendiente${l.pending == 1 ? '' : 's'}',
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => _open(context, l),
                 ),
               ),
@@ -231,7 +228,7 @@ class _ListDetailPageState extends State<ListDetailPage> with Loader<ListDetailP
                     ),
                   ),
                 ],
-                IconButton(onPressed: _add, color: color, icon: const Icon(Icons.add_circle, size: 32)),
+                IconButton(onPressed: _add, color: color, icon: const Icon(Icons.add_circle_rounded, size: 32)),
               ],
             ),
           ),
@@ -268,7 +265,7 @@ class _ListDetailPageState extends State<ListDetailPage> with Loader<ListDetailP
         color: Theme.of(context).colorScheme.errorContainer,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline),
+        child: const Icon(Icons.delete_outline_rounded),
       ),
       onDismissed: (_) {
         setState(() => data = data!.where((x) => x.id != i.id).toList());
@@ -319,7 +316,7 @@ class _ListDetailPageState extends State<ListDetailPage> with Loader<ListDetailP
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event),
+                  leading: const Icon(Icons.event_rounded),
                   title: Text(due.isEmpty ? 'Sin fecha límite' : 'Para el ${shortDate(due)}'),
                   subtitle: due.isEmpty ? const Text('Aparece en el día elegido') : null,
                   trailing: due.isEmpty
@@ -363,4 +360,84 @@ class _ListDetailPageState extends State<ListDetailPage> with Loader<ListDetailP
       ),
     );
   }
+}
+
+/// Adds an item to a list of the user's choice, optionally due on a date.
+Future<void> quickAddItem(BuildContext context, {String dueDate = ''}) async {
+  final lists = await store.lists();
+  if (!context.mounted || lists.isEmpty) return;
+  var listId = lists.first.id;
+  final text = TextEditingController();
+  final qty = TextEditingController();
+  final ok = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(ctx).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Agregar a una lista', style: Theme.of(ctx).textTheme.headlineSmall),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final l in lists)
+                    ChoiceChip(
+                      showCheckmark: false,
+                      avatar: Icon(iconFor(l.icon), size: 16, color: hexColor(l.color)),
+                      label: Text(l.name),
+                      selected: listId == l.id,
+                      selectedColor: hexColor(l.color).withValues(alpha: 0.22),
+                      onSelected: (_) => setState(() => listId = l.id),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: text,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(hintText: '¿Qué hay que hacer o comprar?'),
+                      onSubmitted: (_) => Navigator.pop(ctx, true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: qty,
+                      decoration: const InputDecoration(hintText: 'Cant.'),
+                    ),
+                  ),
+                ],
+              ),
+              if (dueDate.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: EmptyHint('Va a aparecer el ${shortDate(dueDate)} en "Hoy".'),
+                ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Agregar')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  await attempt(
+    context,
+    () => store.saveItem(listId, Item(text: text.text, quantity: qty.text.trim(), dueDate: dueDate)),
+  );
 }

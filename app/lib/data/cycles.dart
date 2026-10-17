@@ -129,3 +129,6 @@ CycleSummary computeCycles(List<PeriodDay> days, DateTime now) {
     predictions: predictions,
   );
 }
+
+/// Start dates of the recorded periods, oldest first.
+List<DateTime> periodStarts(List<PeriodDay> days) => [for (final p in _groupPeriods(days)) p.start];

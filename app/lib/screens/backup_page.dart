@@ -69,13 +69,13 @@ class _BackupPageState extends State<BackupPage> {
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _busy ? null : _export,
-            icon: const Icon(Icons.save_alt),
+            icon: const Icon(Icons.save_alt_rounded),
             label: const Text('Hacer copia'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _busy ? null : _restore,
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             label: const Text('Restaurar desde una copia'),
           ),
           const SizedBox(height: 16),

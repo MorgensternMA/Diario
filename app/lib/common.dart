@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'data/store.dart';
+import 'theme.dart';
 
 // ---------- Dates ----------
 
@@ -46,44 +47,44 @@ Color hexColor(String hex) {
 String colorHex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
 const palette = [
-  '#EF5350', '#EC407A', '#AB47BC', '#7E57C2', '#5C6BC0', '#42A5F5', '#26C6DA', //
-  '#26A69A', '#66BB6A', '#D4E157', '#FFCA28', '#FFA726', '#8D6E63', '#78909C',
+  '#E07A5F', '#F2A65A', '#E9C46A', '#81B29A', '#5FA8A0', '#7FB3D5', //
+  '#6C8EBF', '#9B8AD8', '#C38FD1', '#E58FA8', '#B5838D', '#8D7B68',
 ];
 
 const iconMap = <String, IconData>{
-  'event': Icons.event,
-  'school': Icons.school,
-  'medical': Icons.medical_services,
-  'people': Icons.people,
-  'work': Icons.work,
-  'favorite': Icons.favorite,
-  'cake': Icons.cake,
-  'travel': Icons.flight,
-  'home': Icons.home,
-  'pets': Icons.pets,
-  'book': Icons.menu_book,
-  'music': Icons.music_note,
-  'star': Icons.star,
-  'money': Icons.savings,
-  'check': Icons.check_circle,
-  'list': Icons.list_alt,
-  'cart': Icons.shopping_cart,
-  'bag': Icons.shopping_bag,
-  'gift': Icons.card_giftcard,
-  'water': Icons.water_drop,
-  'fitness': Icons.fitness_center,
-  'walk': Icons.directions_walk,
-  'sleep': Icons.bedtime,
-  'food': Icons.restaurant,
-  'pill': Icons.medication,
-  'spa': Icons.spa,
-  'meditation': Icons.self_improvement,
-  'mood': Icons.mood,
-  'phone': Icons.phone_android,
-  'brush': Icons.brush,
+  'event': Icons.event_rounded,
+  'school': Icons.school_rounded,
+  'medical': Icons.medical_services_rounded,
+  'people': Icons.people_rounded,
+  'work': Icons.work_rounded,
+  'favorite': Icons.favorite_rounded,
+  'cake': Icons.cake_rounded,
+  'travel': Icons.flight_rounded,
+  'home': Icons.home_rounded,
+  'pets': Icons.pets_rounded,
+  'book': Icons.menu_book_rounded,
+  'music': Icons.music_note_rounded,
+  'star': Icons.star_rounded,
+  'money': Icons.savings_rounded,
+  'check': Icons.check_circle_rounded,
+  'list': Icons.list_alt_rounded,
+  'cart': Icons.shopping_cart_rounded,
+  'bag': Icons.shopping_bag_rounded,
+  'gift': Icons.card_giftcard_rounded,
+  'water': Icons.water_drop_rounded,
+  'fitness': Icons.fitness_center_rounded,
+  'walk': Icons.directions_walk_rounded,
+  'sleep': Icons.bedtime_rounded,
+  'food': Icons.restaurant_rounded,
+  'pill': Icons.medication_rounded,
+  'spa': Icons.spa_rounded,
+  'meditation': Icons.self_improvement_rounded,
+  'mood': Icons.mood_rounded,
+  'phone': Icons.phone_android_rounded,
+  'brush': Icons.brush_rounded,
 };
 
-IconData iconFor(String name) => iconMap[name] ?? Icons.label;
+IconData iconFor(String name) => iconMap[name] ?? Icons.label_rounded;
 
 // ---------- Mood & period vocab ----------
 
@@ -102,10 +103,16 @@ const symptomOptions = [
   'Senos sensibles', 'Cansancio', 'Antojos', 'Náuseas', 'Insomnio',
 ];
 
-const periodColor = Color(0xFFE53970);
-const fertileColor = Color(0xFF26A69A);
+const periodColor = Color(0xFFD46A86);
+const fertileColor = Palette.sage;
 
-Color flowColor(int flow) => periodColor.withValues(alpha: 0.25 + 0.18 * flow);
+Color flowColor(int flow) => periodColor.withValues(alpha: 0.18 + 0.14 * flow);
+
+const levelLabels = {
+  'energy': ('Energía', 'Sin fuerza', 'Mucha fuerza'),
+  'motivation': ('Ganas', 'Sin ganas', 'Muchas ganas'),
+  'hunger': ('Hambre', 'Poca', 'Mucha'),
+};
 
 // ---------- Feedback helpers ----------
 
@@ -114,7 +121,7 @@ void showError(BuildContext context, Object e) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
 }
 
-/// Runs an API call, showing any error as a snackbar. Returns success.
+/// Runs a store call, showing any error as a snackbar. Returns success.
 Future<bool> attempt(BuildContext context, Future<void> Function() f) async {
   try {
     await f();
@@ -141,7 +148,7 @@ Future<bool> confirm(BuildContext context, String message, {String action = 'Eli
 
 // ---------- Loading pattern ----------
 
-/// State mixin for screens that load data from the API and reload whenever
+/// State mixin for screens that load data from the store and reload whenever
 /// anything changes (see [bus]).
 mixin Loader<W extends StatefulWidget, T> on State<W> {
   T? data;
@@ -189,7 +196,7 @@ mixin Loader<W extends StatefulWidget, T> on State<W> {
     final d = data;
     if (d != null) return RefreshIndicator(onRefresh: reload, child: builder(d));
     if (error != null) return ErrorView(error: error!, onRetry: reload);
-    return const Center(child: CircularProgressIndicator());
+    return const Center(child: CircularProgressIndicator(strokeWidth: 2.5));
   }
 }
 
@@ -220,12 +227,71 @@ class ErrorView extends StatelessWidget {
 
 // ---------- Small shared widgets ----------
 
+/// Round tinted badge holding an icon, used as each section's mark.
+class IconBubble extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+  const IconBubble(this.icon, this.color, {super.key, this.size = 38});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(size * 0.36)),
+    child: Icon(icon, color: color, size: size * 0.54),
+  );
+}
+
+/// White rounded card with a soft shadow.
+class SoftCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final EdgeInsets margin;
+  final Color? color;
+  final VoidCallback? onTap;
+
+  const SoftCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+    this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Tokens.of(context);
+    return Padding(
+      padding: margin,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [BoxShadow(color: t.shadow, blurRadius: 24, offset: const Offset(0, 8))],
+        ),
+        child: Material(
+          color: color ?? t.card,
+          borderRadius: BorderRadius.circular(26),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(padding: padding, child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
   final Widget? trailing;
   final Color? color;
+  final String? subtitle;
+  final VoidCallback? onTap;
 
   const SectionCard({
     super.key,
@@ -234,31 +300,110 @@ class SectionCard extends StatelessWidget {
     required this.child,
     this.trailing,
     this.color,
+    this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return SoftCard(
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(18, 14, 10, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconBubble(icon, color ?? theme.colorScheme.primary, size: 34),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleMedium),
+                    if (subtitle != null)
+                      Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: Tokens.of(context).muted)),
+                  ],
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          const SizedBox(height: 10),
+          Padding(padding: const EdgeInsets.only(right: 8), child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// Big serif page title with an optional line under it, for tab roots.
+class PageHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  const PageHeader({super.key, required this.title, this.subtitle, this.actions = const []});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 12, 10, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 20, color: color ?? theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
-                ?trailing,
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Tokens.of(context).muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                Text(title, style: theme.textTheme.headlineLarge),
               ],
             ),
-            const SizedBox(height: 4),
-            Padding(padding: const EdgeInsets.only(right: 8), child: child),
-          ],
-        ),
+          ),
+          ...actions,
+        ],
       ),
+    );
+  }
+}
+
+/// Five tappable dots for a 1-5 level; tapping the current value clears it.
+class LevelPicker extends StatelessWidget {
+  final int value;
+  final Color color;
+  final ValueChanged<int> onChanged;
+  const LevelPicker({super.key, required this.value, required this.color, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Tokens.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => onChanged(value == i ? 0 : i),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 26,
+                height: 12,
+                decoration: BoxDecoration(color: i <= value ? color : t.line, borderRadius: BorderRadius.circular(6)),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -269,8 +414,8 @@ class EmptyHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Text(text, style: TextStyle(color: Tokens.of(context).muted)),
   );
 }
 
@@ -289,7 +434,7 @@ class ColorPicker extends StatelessWidget {
           GestureDetector(
             onTap: () => onChanged(hex),
             child: CircleAvatar(
-              radius: 16,
+              radius: 17,
               backgroundColor: hexColor(hex),
               child: hex.toUpperCase() == value.toUpperCase()
                   ? const Icon(Icons.check, size: 18, color: Colors.white)
@@ -363,12 +508,13 @@ class TagPicker extends StatelessWidget {
           FilterChip(
             label: Text(o),
             selected: selected.contains(o),
-            selectedColor: color?.withValues(alpha: 0.25),
+            selectedColor: color?.withValues(alpha: 0.22),
+            showCheckmark: false,
             visualDensity: VisualDensity.compact,
             onSelected: (on) => onChanged(on ? [...selected, o] : selected.where((s) => s != o).toList()),
           ),
         ActionChip(
-          avatar: const Icon(Icons.add, size: 16),
+          avatar: const Icon(Icons.add_rounded, size: 16),
           label: const Text('Otro'),
           visualDensity: VisualDensity.compact,
           onPressed: () => _addCustom(context),
