@@ -487,16 +487,17 @@ class _PeriodCardState extends State<PeriodCard> {
             children: [
               for (var f = 0; f < flowLabel.length; f++)
                 ChoiceChip(
-                  avatar: f == 0
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (var i = 0; i < (f == 1 ? 1 : f - 1); i++)
-                              Icon(f == 1 ? Icons.water_drop_outlined : Icons.water_drop, size: 12, color: periodColor),
-                          ],
-                        ),
-                  label: Text(flowLabel[f]),
+                  showCheckmark: false,
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // One outlined drop for spotting, then 1-3 filled drops.
+                      for (var i = 0; i < (f <= 1 ? f : f - 1); i++)
+                        Icon(f == 1 ? Icons.water_drop_outlined : Icons.water_drop, size: 13, color: periodColor),
+                      if (f > 0) const SizedBox(width: 4),
+                      Text(flowLabel[f]),
+                    ],
+                  ),
                   selected: _flow == f,
                   selectedColor: periodColor.withValues(alpha: 0.25),
                   visualDensity: VisualDensity.compact,
